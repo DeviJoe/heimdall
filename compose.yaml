@@ -1,0 +1,191 @@
+name: linpam
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: linpam
+      POSTGRES_DB: linpam
+      POSTGRES_PASSWORD: ${HEIMDALL_DATABASE_PASSWORD:?Run scripts/demo.sh first}
+    volumes: [postgres-data:/var/lib/postgresql]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U linpam -d linpam"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+  redis:
+    image: redis:8-alpine
+    command: [sh, -c, 'exec redis-server --appendonly yes --requirepass "$$HEIMDALL_REDIS_PASSWORD"']
+    environment:
+      HEIMDALL_REDIS_PASSWORD: ${HEIMDALL_REDIS_PASSWORD}
+    volumes: [redis-data:/data]
+    healthcheck:
+      test: [CMD-SHELL, 'REDISCLI_AUTH="$$HEIMDALL_REDIS_PASSWORD" redis-cli ping | grep -q PONG']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+  pki-init:
+    build: {context: ., target: controlplane}
+    user: "0:0"
+    command: [init, -dir, /pki, -public, /trust]
+    volumes: [pki:/pki, trust:/trust]
+  controlplane:
+    deploy: {replicas: 2}
+    mem_limit: 1536m
+    ulimits: {nofile: {soft: 131072, hard: 131072}}
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: [/tmp]
+    build: {context: ., target: controlplane}
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      pki-init: {condition: service_completed_successfully}
+    environment:
+      GOMEMLIMIT: 1GiB
+      GOGC: "50"
+      HEIMDALL_DATABASE_DSN: postgres://linpam:${HEIMDALL_DATABASE_PASSWORD}@postgres:5432/linpam?sslmode=disable
+      HEIMDALL_RABBITMQ_URL: amqp://linpam:${HEIMDALL_RABBITMQ_PASSWORD}@rabbitmq:5672/
+      HEIMDALL_REDIS_URL: redis://:${HEIMDALL_REDIS_PASSWORD}@redis:6379/0
+      HEIMDALL_ADMIN_PASSWORD: ${HEIMDALL_ADMIN_PASSWORD}
+      HEIMDALL_ENCRYPTION_KEY: ${HEIMDALL_ENCRYPTION_KEY}
+      HEIMDALL_JOIN_TOKEN: ${HEIMDALL_JOIN_TOKEN}
+      HEIMDALL_METRICS_USERNAME: prometheus
+      HEIMDALL_METRICS_PASSWORD_HASH: ${HEIMDALL_METRICS_PASSWORD_HASH}
+      HEIMDALL_TELEGRAM_BOT_TOKEN: ${HEIMDALL_TELEGRAM_BOT_TOKEN:-}
+      HEIMDALL_TELEGRAM_CLIENT_ID: ${HEIMDALL_TELEGRAM_CLIENT_ID:-}
+      HEIMDALL_TELEGRAM_CLIENT_SECRET: ${HEIMDALL_TELEGRAM_CLIENT_SECRET:-}
+      HEIMDALL_TELEGRAM_WEBHOOK_SECRET: ${HEIMDALL_TELEGRAM_WEBHOOK_SECRET:-}
+      HEIMDALL_MATTERMOST_BOT_TOKEN: ${HEIMDALL_MATTERMOST_BOT_TOKEN:-}
+      HEIMDALL_MATTERMOST_CLIENT_ID: ${HEIMDALL_MATTERMOST_CLIENT_ID:-}
+      HEIMDALL_MATTERMOST_CLIENT_SECRET: ${HEIMDALL_MATTERMOST_CLIENT_SECRET:-}
+    volumes: [pki:/pki:ro, ./config/controlplane.yaml:/config/controlplane.yaml:ro]
+    healthcheck:
+      test: [CMD, curl, -fsS, --cacert, /pki/ca.pem, https://localhost:8443/health/ready]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+  gateway:
+    image: haproxy:3.2-alpine
+    depends_on: {controlplane: {condition: service_healthy}}
+    volumes: [./deployments/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro]
+    ports: ["127.0.0.1:8443:8443", "127.0.0.1:9443:9443"]
+    ulimits: {nofile: {soft: 131072, hard: 131072}}
+    restart: unless-stopped
+  rabbitmq:
+    image: rabbitmq:4.2-management-alpine
+    hostname: linpam-rabbitmq
+    mem_limit: 384m
+    environment:
+      RABBITMQ_DEFAULT_USER: linpam
+      RABBITMQ_DEFAULT_PASS: ${HEIMDALL_RABBITMQ_PASSWORD}
+      RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: "+S 2:2 +A 4"
+    volumes: [rabbitmq-data:/var/lib/rabbitmq, ./deployments/rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro]
+    healthcheck:
+      test: [CMD, rabbitmq-diagnostics, -q, ping]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+  grafana:
+    image: grafana/grafana:12.4.1
+    mem_limit: 256m
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${HEIMDALL_GRAFANA_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+      GF_PLUGINS_PREINSTALL_DISABLED: 'true'
+      GF_ANALYTICS_REPORTING_ENABLED: 'false'
+      GF_ANALYTICS_CHECK_FOR_UPDATES: 'false'
+    volumes: [grafana-data:/var/lib/grafana, ./deployments/grafana/provisioning:/etc/grafana/provisioning:ro, ./deployments/grafana/dashboards:/var/lib/grafana/dashboards:ro]
+    ports: ["127.0.0.1:3001:3000"]
+    restart: unless-stopped
+  web:
+    build: {context: web}
+    depends_on: {gateway: {condition: service_started}}
+    ports: ["127.0.0.1:5180:80"]
+    volumes: [trust:/trust:ro]
+    restart: unless-stopped
+  linux-node: &linux-agent
+    hostname: linux-demo
+    mem_limit: 192m
+    build: {context: ., target: node}
+    depends_on: {controlplane: {condition: service_healthy}}
+    environment:
+      HEIMDALL_JOIN_TOKEN: ${HEIMDALL_JOIN_TOKEN}
+      HEIMDALL_NODE_NAME: linux-demo
+      HEIMDALL_AGENT_API: https://gateway:8443
+      HEIMDALL_AGENT_GRPC: gateway:9443
+    volumes: [trust:/trust:ro, node-etc:/etc, node-home:/home, node-identity:/var/lib/heimdall-agent, node-state:/var/lib/heimdall-helper]
+    ports: ["127.0.0.1:${HEIMDALL_SSH_PORT:-22220}:22"]
+    restart: unless-stopped
+  linux-stage:
+    <<: *linux-agent
+    hostname: linux-stage
+    environment:
+      HEIMDALL_JOIN_TOKEN: ${HEIMDALL_JOIN_TOKEN}
+      HEIMDALL_NODE_NAME: linux-stage
+      HEIMDALL_AGENT_API: https://gateway:8443
+      HEIMDALL_AGENT_GRPC: gateway:9443
+    volumes: [trust:/trust:ro, linux-stage-etc:/etc, linux-stage-home:/home, linux-stage-identity:/var/lib/heimdall-agent, linux-stage-state:/var/lib/heimdall-helper]
+    ports: ["127.0.0.1:22222:22"]
+  linux-web:
+    <<: *linux-agent
+    hostname: linux-web
+    environment:
+      HEIMDALL_JOIN_TOKEN: ${HEIMDALL_JOIN_TOKEN}
+      HEIMDALL_NODE_NAME: linux-web
+      HEIMDALL_AGENT_API: https://gateway:8443
+      HEIMDALL_AGENT_GRPC: gateway:9443
+    volumes: [trust:/trust:ro, linux-web-etc:/etc, linux-web-home:/home, linux-web-identity:/var/lib/heimdall-agent, linux-web-state:/var/lib/heimdall-helper]
+    ports: ["127.0.0.1:22223:22"]
+  linux-db:
+    <<: *linux-agent
+    hostname: linux-db
+    environment:
+      HEIMDALL_JOIN_TOKEN: ${HEIMDALL_JOIN_TOKEN}
+      HEIMDALL_NODE_NAME: linux-db
+      HEIMDALL_AGENT_API: https://gateway:8443
+      HEIMDALL_AGENT_GRPC: gateway:9443
+    volumes: [trust:/trust:ro, linux-db-etc:/etc, linux-db-home:/home, linux-db-identity:/var/lib/heimdall-agent, linux-db-state:/var/lib/heimdall-helper]
+    ports: ["127.0.0.1:22224:22"]
+  prometheus:
+    image: prom/prometheus:v3.7.3
+    user: "0:0"
+    volumes: [./deployments/prometheus.yml:/etc/prometheus/prometheus.yml:ro, ./deployments/alerts.yml:/etc/prometheus/alerts.yml:ro, ./.local/metrics-password:/run/secrets/metrics_password:ro, prometheus-data:/prometheus]
+    ports: ["127.0.0.1:9091:9090"]
+    restart: unless-stopped
+  alertmanager:
+    image: prom/alertmanager:v0.28.1
+    command: [--config.file=/etc/alertmanager/alertmanager.yml, --storage.path=/alertmanager]
+    volumes: [./deployments/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro, alertmanager-data:/alertmanager]
+    ports: ["127.0.0.1:9093:9093"]
+    restart: unless-stopped
+volumes:
+  rabbitmq-data:
+  grafana-data:
+  postgres-data:
+  redis-data:
+  pki:
+  trust:
+  node-etc:
+  node-home:
+  node-identity:
+  node-state:
+  prometheus-data:
+  alertmanager-data:
+  linux-stage-etc:
+  linux-stage-home:
+  linux-stage-identity:
+  linux-stage-state:
+  linux-web-etc:
+  linux-web-home:
+  linux-web-identity:
+  linux-web-state:
+  linux-db-etc:
+  linux-db-home:
+  linux-db-identity:
+  linux-db-state:

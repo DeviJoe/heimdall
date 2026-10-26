@@ -1,0 +1,26 @@
+syntax = "proto3";
+package linpam.agent.v1;
+option go_package = "Heimdall/api/gen/agentv1";
+
+service AgentService {
+  rpc Connect(stream AgentMessage) returns (stream ServerMessage);
+  rpc Renew(RenewRequest) returns (RenewResponse);
+  rpc ReportActivity(ActivityRequest) returns (ActivityResponse);
+}
+message AgentMessage {
+  oneof body {
+    Hello hello = 1;
+    Heartbeat heartbeat = 2;
+    ApplyResult result = 3;
+  }
+}
+message Hello { int64 revision = 1; string digest = 2; string version = 3; NodeInfo node_info = 4; }
+message Heartbeat { int64 revision = 1; string local_error = 2; int64 last_local_check = 3; NodeInfo node_info = 4; }
+message ApplyResult { bytes json = 1; }
+message ServerMessage { bytes payload = 1; bytes signature = 2; string digest = 3; }
+message RenewRequest { bytes csr = 1; }
+message RenewResponse { bytes certificate = 1; int64 policy_version = 2; bytes ca_certificate = 3; }
+message ActivityRequest { bytes json = 1; }
+message ActivityResponse { repeated string acknowledged_ids = 1; }
+
+message NodeInfo { string hostname = 1; repeated string addresses = 2; string platform = 3; }

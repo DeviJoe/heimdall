@@ -1,0 +1,172 @@
+export type User = {
+  sync_to_nodes?: boolean;
+  unix_member?: boolean;
+  unix_primary?: boolean;
+  id: string;
+  login: string;
+  display_name: string;
+  status: string;
+  uid: number;
+  gid: number;
+  home: string;
+  shell: string;
+  gecos: string;
+  totp_enabled?: boolean;
+  passkey_count?: number;
+  require_mfa: boolean;
+  require_sk?: boolean;
+  mfa_enabled: boolean;
+  source: string;
+  kind?: "human" | "service";
+  mfa_policy?: string;
+};
+export type SudoRule = {
+  command: string;
+  arguments: string[];
+  run_as: string;
+  no_password: boolean;
+};
+export type Role = {
+  allow_password?: boolean;
+  allow_ssh_keys?: boolean;
+  id: string;
+  name: string;
+  permissions: string[];
+  linux_access: boolean;
+  sudo: SudoRule[];
+  sudoers?: string;
+};
+export type Binding = {
+  group_name?: string;
+  id: string;
+  user_id: string;
+  role_id: string;
+  group_id: string;
+  role: Role;
+};
+export type Principal = {
+  user_id: string;
+  login: string;
+  restricted: boolean;
+  bindings: Binding[];
+};
+export type Me = {
+  factor_state?: {
+    required: string[];
+    administrator_required?: string[];
+    personal_policy?: string;
+    totp: boolean;
+    passkey: boolean;
+  };
+  user: User;
+  principal: Principal;
+  permissions: string[];
+  require_sk: boolean;
+  key_ttl_seconds: number;
+  telegram_enabled: boolean;
+  mattermost_enabled: boolean;
+  swagger_enabled: boolean;
+  mcp_enabled: boolean;
+};
+export type Group = {
+  id: string;
+  name: string;
+  parent_id?: string;
+  nodes?: number;
+  active_nodes?: number;
+};
+export type Node = {
+  certificate_status?: "current" | "pending" | "expired";
+ health?: string;
+  hostname?: string;
+  addresses?: string[];
+  platform?: string;
+  metadata_seen?: string;
+  id: string;
+  name: string;
+  group_id: string;
+  group_name: string;
+  desired_revision: number;
+  applied_revision: number;
+  status: string;
+  connectivity: string;
+  error: string;
+  last_seen: string | null;
+  last_progress: string;
+  pending_since: string;
+  cert_expires: string;
+  disabled: boolean;
+  ssh_host?: string;
+  ssh_port?: number;
+};
+export type Operation = {
+  id: string;
+  kind: string;
+  resource_id: string;
+  revision: number;
+  status: string;
+  total: number;
+  applied: number;
+  failed: number;
+  created_at: string;
+};
+export type Incident = {
+  node_name?: string;
+  occurrences?: number;
+  last_seen?: string;
+  group_id?: string;
+  node_id?: string;
+  user_id?: string;
+  id: string;
+  kind: string;
+  severity: string;
+  message: string;
+  status: string;
+  created_at: string;
+};
+export type SSHKey = {
+  id: string;
+  name: string;
+  algorithm: string;
+  fingerprint: string;
+  public_key: string;
+  status: string;
+  expires_at: string;
+};
+export type Token = {
+  owner_login?: string;
+  id: string;
+  name: string;
+  audiences: string[];
+  scopes: string[];
+  groups: string[];
+  expires_at: string;
+  revoked_at: string | null;
+  last_used: string | null;
+};
+export type Notification = {
+  id: string;
+  provider: string;
+  enabled: boolean;
+  severity: string;
+};
+export type SyncTarget = {
+  node_id: string;
+  name: string;
+  group_id: string;
+  status: string;
+  error: string;
+  revision: number;
+  desired_revision?: number;
+  applied_revision?: number;
+  last_seen?: string;
+  updated_at: string;
+};
+export type AuditEvent = {
+  id: number;
+  actor_id: string;
+  channel: string;
+  action: string;
+  resource_id: string;
+  created_at: string;
+};

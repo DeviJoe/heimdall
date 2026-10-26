@@ -1,0 +1,14 @@
+api: https://controlplane:8443
+grpc: controlplane:9443
+server_name: controlplane
+name: unix-node
+ca_file: /trust/ca.pem
+state_key: /trust/state.pub
+state_dir: /var/lib/heimdall-agent
+worker_state_dir: /var/lib/heimdall-helper
+socket: /run/linpam/helper.sock
+auth_log: /var/log/auth.log
+run_as: heimdall-agent
+heartbeat: 15s
+# Secrets are read from HEIMDALL_JOIN_TOKEN / HEIMDALL_RECOVERY_TOKEN.
+# Inline join_token/recovery_token require root-owned configuration mode 0600.

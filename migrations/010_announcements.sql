@@ -1,0 +1,2 @@
+CREATE TABLE announcements(id uuid PRIMARY KEY,title text NOT NULL,markdown text NOT NULL,severity text NOT NULL CHECK(severity IN ('info','warning','error','success')),enabled bool NOT NULL DEFAULT true,starts_at timestamptz NOT NULL DEFAULT now(),ends_at timestamptz,version bigint NOT NULL DEFAULT 1,created_by uuid REFERENCES users,updated_at timestamptz NOT NULL DEFAULT now());
+INSERT INTO schema_migrations(version) VALUES(10);

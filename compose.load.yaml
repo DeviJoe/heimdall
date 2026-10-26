@@ -1,0 +1,62 @@
+services:
+  load-controlplane:
+    deploy: {replicas: 2}
+    build: {context: ., target: controlplane}
+    mem_limit: 1536m
+    environment:
+      GOMEMLIMIT: 1GiB
+      GOGC: "50"
+      HEIMDALL_DATABASE_DSN: postgres://linpam:${HEIMDALL_DATABASE_PASSWORD}@postgres:5432/linpam_load?sslmode=disable
+      HEIMDALL_RABBITMQ_URL: amqp://linpam:${HEIMDALL_RABBITMQ_PASSWORD}@load-rabbitmq:5672/
+      HEIMDALL_REDIS_URL: redis://:${HEIMDALL_REDIS_PASSWORD}@redis:6379/1
+      HEIMDALL_ADMIN_PASSWORD: ${HEIMDALL_ADMIN_PASSWORD}
+      HEIMDALL_ENCRYPTION_KEY: ${HEIMDALL_ENCRYPTION_KEY}
+      HEIMDALL_JOIN_TOKEN: ${HEIMDALL_JOIN_TOKEN}
+      HEIMDALL_METRICS_USERNAME: prometheus
+      HEIMDALL_METRICS_PASSWORD_HASH: ${HEIMDALL_METRICS_PASSWORD_HASH}
+    volumes: [pki:/pki:ro, ./config/controlplane.yaml:/config/controlplane.yaml:ro]
+    depends_on: {load-rabbitmq: {condition: service_healthy}}
+    ulimits: {nofile: {soft: 131072, hard: 131072}}
+    healthcheck:
+      test: [CMD, curl, -fsS, --cacert, /pki/ca.pem, https://localhost:8443/health/ready]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  load-generator:
+    build: {context: ., target: loadtest}
+    mem_limit: 2560m
+    depends_on: {load-gateway: {condition: service_started}}
+    environment:
+      GOMEMLIMIT: 1800MiB
+      GOGC: "50"
+      HEIMDALL_DATABASE_DSN: postgres://linpam:${HEIMDALL_DATABASE_PASSWORD}@postgres:5432/linpam_load?sslmode=disable
+    volumes: [pki:/pki:ro]
+    ulimits: {nofile: {soft: 131072, hard: 131072}}
+    command: [-agents, "${HEIMDALL_LOAD_AGENTS:-20000}", -hold, 45s, -grpc, load-gateway:9443]
+  load-users:
+    build: {context: ., target: tests}
+    mem_limit: 768m
+    environment:
+      GOMEMLIMIT: 400MiB
+      HEIMDALL_TEST_DATABASE_DSN: postgres://linpam:${HEIMDALL_DATABASE_PASSWORD}@postgres:5432/linpam_load?sslmode=disable
+    entrypoint: [go, test, -v, -tags=loadtest, ./internal/platform/postgres, -run, TestTwentyThousandUsersProjectionAndPaging, -count=1]
+    depends_on: {postgres: {condition: service_healthy}}
+  load-rabbitmq:
+    volumes: [./deployments/rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro]
+    image: rabbitmq:4.2-alpine
+    mem_limit: 384m
+    environment:
+      RABBITMQ_DEFAULT_USER: linpam
+      RABBITMQ_DEFAULT_PASS: ${HEIMDALL_RABBITMQ_PASSWORD}
+      RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: "+S 2:2 +A 4"
+    healthcheck:
+      test: [CMD, rabbitmq-diagnostics, -q, ping]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  load-gateway:
+    image: haproxy:3.2-alpine
+    depends_on: {load-controlplane: {condition: service_healthy}}
+    mem_limit: 512m
+    volumes: [./deployments/haproxy-load.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro]
+    ulimits: {nofile: {soft: 131072, hard: 131072}}

@@ -1,0 +1,6 @@
+# Root-owned, mode 0600. Values must be single shell words (no spaces).
+heimdall_api=https://controlplane.example.org:8443
+heimdall_grpc=controlplane.example.org:9443
+heimdall_server_name=controlplane.example.org
+heimdall_name=freebsd-node
+HEIMDALL_JOIN_TOKEN=

@@ -1,0 +1,9 @@
+# Bounded test while unrelated clusters share an 8 GiB Docker Desktop VM.
+services:
+  load-controlplane:
+    mem_limit: 640m
+    environment: {GOMEMLIMIT: 400MiB, GOGC: "50"}
+  load-generator:
+    mem_limit: 768m
+    environment: {GOMEMLIMIT: 500MiB, GOGC: "50"}
+    command: [-agents, "5000", -hold, 45s]

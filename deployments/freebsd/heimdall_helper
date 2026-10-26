@@ -1,0 +1,22 @@
+#!/bin/sh
+# PROVIDE: heimdall_helper
+# REQUIRE: LOGIN
+# KEYWORD: shutdown
+. /etc/rc.subr
+name=heimdall_helper
+rcvar=heimdall_helper_enable
+load_rc_config "$name"
+: ${heimdall_helper_enable:=NO}
+start_precmd=heimdall_helper_prepare
+command=/usr/sbin/daemon
+pidfile=/var/run/heimdall/helper-supervisor.pid
+command_args="-f -r -R 5 -P ${pidfile} -o /var/log/heimdall-helper.log /usr/local/sbin/heimdall-helper -socket /var/run/heimdall/helper.sock -state-dir /var/db/heimdall-helper -state-key /usr/local/etc/heimdall/state.pub"
+heimdall_helper_prepare() {
+  . /usr/local/etc/heimdall/agent.conf || return 1
+  export HEIMDALL_JOIN_TOKEN
+  install -d -o root -g wheel -m 0755 /var/run/heimdall
+  install -d -o root -g wheel -m 0700 /var/db/heimdall-helper
+  touch /var/log/heimdall-helper.log
+  chmod 0600 /var/log/heimdall-helper.log
+}
+run_rc_command "$1"

@@ -1,0 +1,18 @@
+Port 22
+ListenAddress 0.0.0.0
+HostKey /etc/ssh/ssh_host_ed25519_key
+HostKey /etc/ssh/ssh_host_rsa_key
+PermitRootLogin no
+PubkeyAuthentication yes
+AuthorizedKeysFile /etc/heimdall/authorized_keys/%u
+StrictModes yes
+PasswordAuthentication no
+PermitEmptyPasswords no
+KbdInteractiveAuthentication no
+UsePAM yes
+X11Forwarding no
+AllowAgentForwarding no
+AllowTcpForwarding no
+PermitTunnel no
+LogLevel VERBOSE
+Subsystem sftp internal-sftp

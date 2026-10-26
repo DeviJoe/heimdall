@@ -1,0 +1,13 @@
+api: https://controlplane.example.org:8443
+grpc: controlplane.example.org:9443
+server_name: controlplane.example.org
+name: freebsd-node
+ca_file: /usr/local/etc/heimdall/ca.pem
+state_key: /usr/local/etc/heimdall/state.pub
+state_dir: /var/db/heimdall-agent
+worker_state_dir: /var/db/heimdall-helper
+socket: /var/run/heimdall/helper.sock
+auth_log: /var/log/auth.log
+run_as: heimdall-agent
+heartbeat: 15s
+join_token: ""

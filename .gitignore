@@ -1,0 +1,14 @@
+.idea/
+.env
+.env.*
+!.env.example
+.local/
+bin/
+web/node_modules/
+web/dist/
+*.tsbuildinfo
+__pycache__/
+*.py[cod]
+.DS_Store
+coverage.out
+*.test

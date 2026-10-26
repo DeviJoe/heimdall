@@ -1,0 +1,9 @@
+.idea
+.git
+.local
+.env
+bin
+web/node_modules
+web/dist
+
+heimdall

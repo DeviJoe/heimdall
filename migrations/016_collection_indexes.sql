@@ -1,0 +1,11 @@
+CREATE INDEX incidents_active_page ON incidents(last_seen DESC,id DESC) WHERE status<>'resolved';
+CREATE INDEX incidents_history_page ON incidents(last_seen DESC,id DESC);
+CREATE INDEX operations_page ON sync_operations(revision DESC,id DESC);
+CREATE INDEX security_events_page ON security_events(received_at DESC,id DESC);
+CREATE INDEX security_events_node_page ON security_events(node_id,received_at DESC,id DESC);
+CREATE INDEX groups_page ON server_groups(lower(name),id);
+CREATE INDEX people_groups_page ON user_groups(lower(name),id);
+CREATE INDEX unix_groups_page ON unix_groups(lower(name),id);
+CREATE INDEX roles_page ON roles(lower(name),id);
+CREATE INDEX join_tokens_page ON join_tokens(expires_at DESC,id DESC);
+INSERT INTO schema_migrations(version) VALUES(16);

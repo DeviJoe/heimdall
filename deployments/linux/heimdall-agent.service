@@ -1,0 +1,22 @@
+[Unit]
+Description=Heimdall agent
+After=network-online.target sshd.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/sbin/heimdall-agent -config /etc/heimdall/agent.yaml
+EnvironmentFile=-/etc/heimdall/agent.env
+Restart=on-failure
+RestartSec=10s
+NoNewPrivileges=true
+ProtectSystem=full
+ReadWritePaths=/etc /var/lib/heimdall-agent /var/lib/heimdall-helper /run
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

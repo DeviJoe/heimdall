@@ -1,0 +1,48 @@
+server:
+  public_url: http://localhost:5180
+  api_listen: :8443
+  grpc_listen: :9443
+  pki_dir: /pki
+  development: true
+database:
+  dsn_env: HEIMDALL_DATABASE_DSN
+redis:
+  url_env: HEIMDALL_REDIS_URL
+queue:
+  url_env: HEIMDALL_RABBITMQ_URL
+security:
+  encryption_key_env: HEIMDALL_ENCRYPTION_KEY
+  admin_password_env: HEIMDALL_ADMIN_PASSWORD
+  join_token_env: HEIMDALL_JOIN_TOKEN
+  require_sk: false
+  key_ttl: 720h
+sync:
+  apply_timeout: 15m
+  heartbeat_interval: 15s
+  stalled_after: 45s
+  offline_after: 45s
+  revocation_alert_after: 20s
+metrics:
+  listen: :9090
+  username_env: HEIMDALL_METRICS_USERNAME
+  password_hash_env: HEIMDALL_METRICS_PASSWORD_HASH
+  tls: false
+  mtls: false
+swagger:
+  enabled: true
+mcp:
+  enabled: true
+telegram:
+  enabled: false
+  bot_token_env: HEIMDALL_TELEGRAM_BOT_TOKEN
+  client_id_env: HEIMDALL_TELEGRAM_CLIENT_ID
+  client_secret_env: HEIMDALL_TELEGRAM_CLIENT_SECRET
+  webhook_secret_env: HEIMDALL_TELEGRAM_WEBHOOK_SECRET
+mattermost:
+  enabled: false
+  url: https://mattermost.example.org
+  token_env: HEIMDALL_MATTERMOST_BOT_TOKEN
+  client_id_env: HEIMDALL_MATTERMOST_CLIENT_ID
+  client_secret_env: HEIMDALL_MATTERMOST_CLIENT_SECRET
+oidc: []
+ldap: []

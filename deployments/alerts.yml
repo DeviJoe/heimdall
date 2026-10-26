@@ -1,0 +1,63 @@
+groups:
+  - name: heimdall
+    rules:
+      - alert: HeimdallControlPlaneUnavailable
+        expr: (up{job="heimdall"} == 0) or absent(up{job="heimdall"})
+        for: 15s
+        labels: {severity: critical}
+        annotations: {summary: "Heimdall control plane metrics unavailable"}
+      - alert: HeimdallRevocationPending
+        expr: heimdall_revocation_pending_nodes{job="heimdall"} > 0 and (heimdall_sync_oldest_pending_seconds{job="heimdall"} > heimdall_revocation_alert_after_seconds{job="heimdall"})
+        for: 5s
+        labels: {severity: critical}
+        annotations: {summary: "Native access revocation is not confirmed"}
+      - alert: HeimdallSyncStalled
+        expr: heimdall_sync_pending_nodes{job="heimdall"} > 0 and (heimdall_sync_oldest_pending_seconds{job="heimdall"} > heimdall_sync_stalled_after_seconds{job="heimdall"})
+        for: 5s
+        labels: {severity: critical}
+        annotations: {summary: "Heimdall synchronization is stalled"}
+      - alert: HeimdallDetectorStalled
+        expr: time() - heimdall_sync_detector_timestamp_seconds{job="heimdall"} > 30
+        for: 10s
+        labels: {severity: critical}
+        annotations: {summary: "Synchronization detector stopped making progress"}
+      - alert: HeimdallMetricsStale
+        expr: time() - heimdall_metrics_snapshot_timestamp_seconds{job="heimdall"} > 30
+        for: 10s
+        labels: {severity: critical}
+        annotations: {summary: "Heimdall database monitoring is stale"}
+      - alert: HeimdallNotificationsStalled
+        expr: heimdall_notification_oldest_pending_seconds{job="heimdall"} > 120
+        for: 30s
+        labels: {severity: critical}
+        annotations: {summary: "Heimdall notifications are delayed or failed"}
+      - alert: HeimdallQueueUnavailable
+        expr: heimdall_queue_connected{job="heimdall"} == 0
+        for: 15s
+        labels: {severity: critical}
+        annotations: {summary: "RabbitMQ synchronization transport unavailable"}
+      - alert: HeimdallOutboxStalled
+        expr: heimdall_outbox_oldest_pending_seconds{job="heimdall"} > 30
+        for: 10s
+        labels: {severity: critical}
+        annotations: {summary: "Synchronization outbox publication stalled"}
+      - alert: HeimdallDirectoryFailed
+        expr: heimdall_directory_failed{job="heimdall"} > 0
+        for: 15s
+        labels: {severity: critical}
+        annotations: {summary: "Directory synchronization failed"}
+      - alert: HeimdallDirectoryStale
+        expr: time() - heimdall_directory_last_success_timestamp_seconds{job="heimdall"} > 180
+        for: 30s
+        labels: {severity: critical}
+        annotations: {summary: "Directory synchronization is stale"}
+      - alert: HeimdallNodeOffline
+        expr: heimdall_nodes_connectivity{job="heimdall",state="offline"} > 0
+        for: 10s
+        labels: {severity: critical}
+        annotations: {summary: "Registered nodes stopped sending heartbeats"}
+      - alert: HeimdallCertificateRolloutStalled
+        expr: heimdall_certificates_pending{job="heimdall"} > 0 and (heimdall_certificate_rollout_oldest_seconds{job="heimdall"} > heimdall_sync_stalled_after_seconds{job="heimdall"})
+        for: 5s
+        labels: {severity: critical}
+        annotations: {summary: "Node certificate reissue has not been confirmed"}

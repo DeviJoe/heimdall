@@ -1,0 +1,21 @@
+#!/bin/sh
+# PROVIDE: heimdall_agent
+# REQUIRE: LOGIN NETWORKING
+# KEYWORD: shutdown
+. /etc/rc.subr
+name=heimdall_agent
+rcvar=heimdall_agent_enable
+load_rc_config "$name"
+: ${heimdall_agent_enable:=NO}
+start_precmd=heimdall_agent_prepare
+command=/usr/sbin/daemon
+pidfile=/var/run/heimdall/agent-supervisor.pid
+command_args="-f -r -R 5 -P ${pidfile} -o /var/log/heimdall-agent.log /usr/local/sbin/heimdall-agent -config /usr/local/etc/heimdall/agent.yaml"
+heimdall_agent_prepare() {
+  install -d -o root -g wheel -m 0755 /var/run/heimdall
+  install -d -o heimdall-agent -g heimdall-agent -m 0700 /var/db/heimdall-agent
+  install -d -o root -g wheel -m 0700 /var/db/heimdall-helper
+  touch /var/log/heimdall-agent.log
+  chmod 0600 /var/log/heimdall-agent.log
+}
+run_rc_command "$1"
